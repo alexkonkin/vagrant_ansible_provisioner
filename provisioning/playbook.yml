@@ -16,10 +16,6 @@
   - name: Install Python-Django
     yum: name=python-django state=latest
 
-#  - name: Navigate to the parent directory of Django project
-#    shell:
-#      cd ~
-
   - name: Delete Django project and its database
     file:
       path: "{{ item }}"

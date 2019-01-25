@@ -1,0 +1,55 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  become_method: sudo
+  tasks:
+  
+  - name: Add repository
+    yum_repository:
+      name: epel
+      description: EPEL YUM repo
+      baseurl: https://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+      gpgcheck: no
+      enabled: yes
+
+  - name: Install Python-Django
+    yum: name=python-django state=latest
+
+#  - name: Navigate to the parent directory of Django project
+#    shell:
+#      cd ~
+
+  - name: Delete Django project and its database
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+    - ./demo
+    - ./manage.py
+    - ./db.sqlite3
+
+  - name: Get running processes
+    shell: "ps ax|grep 8080|grep -v grep|awk '{print $1}'"
+    register: running_processes
+
+  - name: Kill running processes
+    shell: "kill {{ item }}"
+    with_items: "{{ running_processes.stdout_lines }}"
+
+  - name: Create Django project
+    shell:
+      django-admin startproject demo .
+
+  - name: Initialize Django database
+    shell:
+      python manage.py migrate --noinput
+
+  - name: Add admin user and initialize their password
+    shell:
+      echo "from django.contrib.auth.models import User; User.objects.create_superuser('admin', 'admin@example.com', '12345')" | python manage.py shell
+
+  - name: Run Django on port 8080
+    shell: python manage.py runserver 0.0.0.0:8080 </dev/null >/dev/null 2>&1 &
+    async: 1
+
